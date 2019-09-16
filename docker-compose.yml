@@ -1,0 +1,96 @@
+version: '3.1'
+services:
+
+  #PHP Service
+  web:
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
+    image: davidguardia.com/php
+    container_name: web
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8888:8888"
+    # env_file:
+    #   - "./docker_config/jupyter.env"
+    environment:
+      SERVICE_NAME: web
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - laranet
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - laranet
+    
+  # POSTGRESS SQL Service
+  postgress_db:
+    build:
+      context: "./db/"
+      dockerfile: Dockerfile
+    env_file:
+      - "./docker_config/jupyter.env"
+    image: davidguardia.com/postgress
+    container_name: database
+    # container_name: postgress_db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "5432:5432"
+    environment:
+      - "DB_DATABASE=homestead"
+      - "DB_USERNAME=homestead"
+      - "DB_PASSWORD=secret"
+      # - "POSTGRES_DB=postgress_db"
+      # - "POSTGRES_USER=postgress_user"
+      - "POSTGRES_PASSWORD=postgress_password"
+      - "LC_ALL: C.UTF-8"
+      - "SERVICE_TAGS=dv"
+      - "SERVICE_NAME=postgress_db"
+    volumes:
+      - "dbdata:/var/lib/postgresql/data"
+    networks:
+      laranet:
+
+  redis:
+    container_name: redis
+    image: redis:alpine
+    volumes:
+      - redisdata:/data
+    networks:
+      laranet:
+  
+  adminer:
+    image: adminer
+    restart: always
+    networks:
+      laranet:
+    ports:
+      - "8080:8080"
+
+#Docker Networks
+networks:
+  laranet:
+    driver: "bridge"
+#Volumes
+volumes:
+  dbdata:
+    driver: "local"
+  redisdata:
+    driver: "local"
